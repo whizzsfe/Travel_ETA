@@ -142,10 +142,11 @@ Travel_ETA/
 ├── search.php       # POST handler — loop, save results, redirect
 ├── routes_api.php   # cURL wrapper — builds payload with placeId, returns parsed duration
 ├── db.php           # PDO connection + 4-table bootstrap (CREATE TABLE IF NOT EXISTS)
-├── config.php       # API keys + DB credentials (gitignored)
-├── .gitignore       # Excludes config.php
-├── schema.sql       # Full reference schema (standalone SQL file)
-└── PLAN.md          # This file
+├── config.php        # API keys + DB credentials (gitignored, NOT FTP'd)
+├── config.sample.php # Committed template — copy to config.php on server and fill in
+├── .gitignore        # Excludes config.php
+├── schema.sql        # Full reference schema (standalone SQL file)
+└── PLAN.md           # This file
 ```
 
 ---
@@ -156,6 +157,30 @@ Travel_ETA/
 - Places API key restricted by HTTP referrer (browser-side only)
 - Routes API key restricted by server IP (PHP backend only)
 - All POST inputs validated/sanitised before use
+
+---
+
+## Deployment (FTP)
+
+- Files uploaded manually via FTP (e.g. FileZilla, WinSCP, or VS Code SFTP extension)
+- `config.php` is **never uploaded** — instead, a `config.sample.php` is committed to the repo as a template; the live `config.php` is created manually on the server
+- `.ftpignore` (or FTP client exclude rules) should block: `config.php`, `PLAN.md`, `.gitignore`, `schema.sql`
+- Recommended upload targets per file:
+
+| Local file | Upload? | Notes |
+|---|---|---|
+| `index.php` | Yes | |
+| `trip.php` | Yes | |
+| `search.php` | Yes | |
+| `routes_api.php` | Yes | |
+| `db.php` | Yes | |
+| `config.php` | **No** | Create manually on server |
+| `config.sample.php` | Yes | Template only, no real credentials |
+| `schema.sql` | Optional | Run once on server DB, then not needed |
+| `PLAN.md` | No | Dev reference only |
+| `.gitignore` | No | Not relevant on server |
+
+- `db.php` bootstraps tables with `CREATE TABLE IF NOT EXISTS` so the schema self-installs on first page load — no need to manually run SQL unless you want to pre-create tables
 
 ---
 
