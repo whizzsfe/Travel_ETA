@@ -186,9 +186,9 @@ estimated_arrival       DATETIME,           -- NULL if skipped or error
 duration_seconds        INT,                -- NULL if skipped or error
 static_duration_seconds INT,                -- NULL if skipped or error; traffic vs no-traffic comparison per slot
 delta_seconds           INT,                -- NULL if skipped or error; signed: (estimated_arrival − target_arrival) in seconds; negative = early, positive = late
-is_best                 TINYINT(1) DEFAULT 0,
-skipped                 TINYINT(1) DEFAULT 0,  -- 1 = departure was in the past, API not called
-error                   TINYINT(1) DEFAULT 0,  -- 1 = API call attempted but failed (network/rate limit/invalid place)
+is_best                 TINYINT(1) NOT NULL DEFAULT 0,
+skipped                 TINYINT(1) NOT NULL DEFAULT 0,  -- 1 = departure was in the past, API not called
+error                   TINYINT(1) NOT NULL DEFAULT 0,  -- 1 = API call attempted but failed (network/rate limit/invalid place)
 error_message           VARCHAR(255),          -- human-readable reason for error
 FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
 ```
@@ -208,6 +208,7 @@ index.php  (dashboard — handles its own POST at top of file before any HTML ou
         ├── Waypoints[]         (dynamic add/remove — each added input gets a new PlaceAutocompleteElement bound to it via JS)
         ├── Destination         (PlaceAutocompleteElement + hidden place_id/lat/lng)
         ├── CSRF token          (hidden field, validated server-side)
+        ├── Server-side: validate CSRF token — if mismatch or absent: flash danger, redirect to index.php, exit
         ├── Server-side: reject if trip name empty
         ├── Server-side: reject if any place_id is empty (user typed but didn't select from dropdown)
         ├── Server-side: if trip_hash already exists → set flash "This exact route is already saved — showing existing trip", redirect to existing trip (no duplicate saved)
