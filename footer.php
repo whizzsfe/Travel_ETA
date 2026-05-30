@@ -3,25 +3,21 @@
 </body>
 
 <script>
-    /**
-     * attachAutocomplete — binds a PlaceAutocompleteElement to one input.
-     * Called at load for existing inputs and by the waypoint-add button for new ones.
-     * Never re-calls initPlaces() (would double-bind existing elements).
-     */
     function attachAutocomplete(inputEl) {
-        // Determine the field prefix from a data attribute on the input.
-        // e.g. data-prefix="origin" → hidden fields: origin_place_id, origin_display, origin_lat, origin_lng
-        //      data-prefix="waypoints[0]" → waypoints[0][place_id] etc.
         var prefix = inputEl.dataset.prefix;
+        console.log('[TravelETA attachAutocomplete] prefix:', prefix);
+
+        if (!window.google || !google.maps.places || !google.maps.places.PlaceAutocompleteElement) {
+            console.error('[TravelETA] PlaceAutocompleteElement not available — google.maps.places:', window.google && google.maps.places);
+            return;
+        }
 
         var pac = new google.maps.places.PlaceAutocompleteElement();
         pac.style.width = '100%';
+        console.log('[TravelETA] PAC created. tagName:', pac.tagName);
 
-        // Insert the PAC element immediately after the visible input wrapper.
         var wrapper = inputEl.closest('.autocomplete-wrapper') || inputEl.parentNode;
         wrapper.appendChild(pac);
-
-        // Hide the raw text input — PAC element provides its own UI.
         inputEl.style.display = 'none';
 
         function clearHiddenFields() {
@@ -31,73 +27,83 @@
             setField(prefix, 'lng',          '');
         }
 
-        // Note: do NOT bind clearHiddenFields to the 'input' event on the PAC element.
-        // PlaceAutocompleteElement fires 'input' when it updates its own text after a
-        // gmp-placeselect, which would clear the hidden fields we just set.
+        function handlePlaceSelect(event) {
+            // event.place is the standard property; event.detail.place is a fallback for
+            // some API versions that dispatch through CustomEvent.
+            var place = event.place || (event.detail && event.detail.place);
+            console.log('[TravelETA] placeselect event:', event.type,
+                '| prefix:', prefix,
+                '| place:', place,
+                '| place.id:', place ? place.id : 'NONE');
 
-        pac.addEventListener('gmp-placeselect', function(event) {
-            var place = event.place;
-
-            // Clear any stale values from a previous selection first.
-            clearHiddenFields();
-
-            // Debug logging — remove once place_id issue is confirmed resolved.
-            console.log('[TravelETA gmp-placeselect] prefix:', prefix, '| place.id:', place ? place.id : 'NO PLACE');
-
-            // place.id is populated immediately on the Place object — set it without
-            // waiting for fetchFields so the value is available even if fetchFields is slow.
-            if (place.id) {
-                setField(prefix, 'place_id', place.id);
+            if (!place) {
+                console.warn('[TravelETA] No place in event — user may not have clicked a suggestion');
+                return;
             }
 
-            // Fetch display name + coordinates (not available before fetchFields).
+            clearHiddenFields();
+
+            if (place.id) {
+                setField(prefix, 'place_id', place.id);
+                console.log('[TravelETA] Immediately set place_id =', place.id);
+            }
+
             place.fetchFields({ fields: ['id', 'displayName', 'location'] }).then(function() {
                 setField(prefix, 'place_id',     place.id);
                 setField(prefix, 'display_name', place.displayName);
                 setField(prefix, 'lat',          place.location.lat());
                 setField(prefix, 'lng',          place.location.lng());
+                console.log('[TravelETA fetchFields OK]',
+                    'place_id:', place.id,
+                    '| display:', place.displayName,
+                    '| lat:', place.location.lat(),
+                    '| lng:', place.location.lng());
             }).catch(function(err) {
-                // fetchFields failed — only clear display/lat/lng; preserve place_id
-                // which was already set from place.id before fetchFields was called.
                 setField(prefix, 'display_name', '');
                 setField(prefix, 'lat',          '');
                 setField(prefix, 'lng',          '');
-                console.error('PlaceAutocomplete fetchFields error:', err);
+                console.error('[TravelETA fetchFields FAILED]', err);
             });
-        });
+        }
+
+        // The event name has varied across API versions — listen to both.
+        pac.addEventListener('gmp-placeselect', handlePlaceSelect);
+        pac.addEventListener('gmp-select',      handlePlaceSelect);
     }
 
-    /**
-     * setField — sets a hidden input value by field prefix + field name.
-     * Prefix "origin"        → name="origin_place_id"
-     * Prefix "waypoints[0]"  → name="waypoints[0][place_id]"
-     */
     function setField(prefix, field, value) {
-        // Build the name attribute: flat for origin/destination, array syntax for waypoints.
-        // For flat prefixes, 'display_name' maps to the '_display' suffix used in the HTML
-        // (origin_display, destination_display) to match the DB column names.
         var name;
         if (prefix.indexOf('[') === -1) {
-            // origin / destination
+            // origin / destination: 'display_name' → '_display' to match hidden field names
             var suffix = (field === 'display_name') ? 'display' : field;
             name = prefix + '_' + suffix;
         } else {
-            // waypoints[N] — array syntax, field name used as-is (waypoints[0][display_name])
+            // waypoints[N] — array syntax
             name = prefix + '[' + field + ']';
         }
         var el = document.querySelector('input[name="' + name + '"]');
-        if (el) el.value = value;
+        if (el) {
+            el.value = value;
+        } else {
+            console.warn('[TravelETA setField] element not found for name:', name);
+        }
     }
 
-    /**
-     * initPlaces — fired by Google as callback=initPlaces once the library loads.
-     * Attaches autocomplete to every .autocomplete-input already in the DOM.
-     * Must NOT be called again after load.
-     */
     function initPlaces() {
-        document.querySelectorAll('.autocomplete-input').forEach(function(el) {
-            attachAutocomplete(el);
-        });
+        var inputs = document.querySelectorAll('.autocomplete-input');
+        console.log('[TravelETA initPlaces] called — inputs found:', inputs.length);
+
+        // Document-level capture catches the event even if it doesn't bubble out of shadow DOM.
+        document.addEventListener('gmp-placeselect', function(e) {
+            console.log('[TravelETA DOCUMENT capture] gmp-placeselect — target tag:', e.target.tagName,
+                '| place:', e.place);
+        }, true);
+        document.addEventListener('gmp-select', function(e) {
+            console.log('[TravelETA DOCUMENT capture] gmp-select — target tag:', e.target.tagName,
+                '| detail:', e.detail);
+        }, true);
+
+        inputs.forEach(function(el) { attachAutocomplete(el); });
     }
 </script>
 
