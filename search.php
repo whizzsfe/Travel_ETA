@@ -83,7 +83,7 @@ $wpStmt->execute([$tripId]);
 $waypoints = $wpStmt->fetchAll();
 
 // Build intermediates array for Routes API
-$intermediates = array_map(fn($wp) => ['placeId' => $wp['place_id']], $waypoints);
+$intermediates = array_map(function($wp) { return ['placeId' => $wp['place_id']]; }, $waypoints);
 
 // ---------------------------------------------------------------------------
 // Calculate 13 departure slots
@@ -173,7 +173,7 @@ foreach ($slots as $slotStr) {
 $warning      = null;
 $bestSlot     = null; // the slot string of the winning iteration
 
-$onTimeResults = array_filter($successResults, fn($r) => $r['delta_seconds'] <= 0);
+$onTimeResults = array_filter($successResults, function($r) { return $r['delta_seconds'] <= 0; });
 
 if (!empty($onTimeResults)) {
     // Pick slot minimising abs(delta + 900); tiebreak = later departure_time (later = greater string)
@@ -190,7 +190,7 @@ if (!empty($onTimeResults)) {
 
 } elseif (!empty($successResults)) {
     // All valid slots arrived late — pick least-late (smallest positive delta)
-    usort($successResults, fn($a, $b) => $a['delta_seconds'] - $b['delta_seconds']);
+    usort($successResults, function($a, $b) { return $a['delta_seconds'] - $b['delta_seconds']; });
     $bestSlot = $successResults[0]['slot'];
     $warning  = 'All valid slots arrived late';
 }
@@ -278,8 +278,8 @@ foreach ($iterationData as $iter) {
 // Determine outcome and set flash message
 // ---------------------------------------------------------------------------
 $countTotal   = count($iterationData);
-$countSkipped = count(array_filter($iterationData, fn($r) => $r['skipped']));
-$countError   = count(array_filter($iterationData, fn($r) => $r['error']));
+$countSkipped = count(array_filter($iterationData, function($r) { return $r['skipped']; }));
+$countError   = count(array_filter($iterationData, function($r) { return $r['error']; }));
 $countSuccess = count($successResults);
 
 function formatDeparture(string $dt): string {
