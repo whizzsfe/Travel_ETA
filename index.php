@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/db.php';
 
 // ---------------------------------------------------------------------------
-// POST handler — new trip form submission
+// POST handler — new trip form submission / delete trip
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -17,6 +17,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
     ) {
         $_SESSION['flash'] = ['type' => 'danger', 'message' => 'Invalid form submission. Please try again.'];
+        header('Location: index.php');
+        exit;
+    }
+
+    // -----------------------------------------------------------------------
+    // Delete trip action
+    // -----------------------------------------------------------------------
+    if (($_POST['action'] ?? '') === 'delete') {
+        $tripId = (int) ($_POST['trip_id'] ?? 0);
+        if ($tripId > 0) {
+            $pdo->prepare('DELETE FROM trips WHERE id = ?')->execute([$tripId]);
+        }
+        $_SESSION['flash'] = ['type' => 'success', 'message' => 'Trip deleted.'];
         header('Location: index.php');
         exit;
     }
@@ -148,13 +161,14 @@ if (isset($_SESSION['flash'])) {
        . '</div>';
 }
 
-// Trip list with latest search result per trip
+// Trip list — auto-hide trips whose most recent search target has passed.
+// Trips with no searches yet are always shown.
 $trips = $pdo->query(
     'SELECT t.*,
-            s.target_arrival   AS last_target_arrival,
-            s.best_departure   AS last_best_departure,
+            s.target_arrival    AS last_target_arrival,
+            s.best_departure    AS last_best_departure,
             s.estimated_arrival AS last_est_arrival,
-            s.warning          AS last_warning
+            s.warning           AS last_warning
      FROM trips t
      LEFT JOIN searches s ON s.id = (
          SELECT id FROM searches
@@ -162,6 +176,8 @@ $trips = $pdo->query(
          ORDER BY run_at DESC
          LIMIT 1
      )
+     WHERE s.target_arrival IS NULL
+        OR s.target_arrival >= datetime("now")
      ORDER BY t.created_at DESC'
 )->fetchAll();
 
@@ -180,9 +196,9 @@ function fmtDt(?string $dt): string {
 <?php else: ?>
     <div class="list-group mb-4">
         <?php foreach ($trips as $trip): ?>
-            <a href="trip.php?id=<?= $trip['id'] ?>"
-               class="list-group-item list-group-item-action">
-                <div class="d-flex justify-content-between align-items-start">
+            <div class="list-group-item p-0 d-flex align-items-stretch">
+                <a href="trip.php?id=<?= $trip['id'] ?>"
+                   class="flex-grow-1 p-3 text-decoration-none text-body d-flex justify-content-between align-items-start">
                     <div>
                         <strong><?= h($trip['name']) ?></strong>
                         <div class="text-muted small">
@@ -200,9 +216,20 @@ function fmtDt(?string $dt): string {
                             <div class="small mt-1 text-muted fst-italic">Last search: no result</div>
                         <?php endif; ?>
                     </div>
-                    <i class="bi bi-chevron-right text-muted"></i>
-                </div>
-            </a>
+                    <i class="bi bi-chevron-right text-muted ms-2"></i>
+                </a>
+                <form method="post" action="index.php"
+                      class="d-flex align-items-center px-2 border-start"
+                      onsubmit="return confirm('Delete \'<?= addslashes(h($trip['name'])) ?>\' and all its search history?');">
+                    <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="action"     value="delete">
+                    <input type="hidden" name="trip_id"    value="<?= $trip['id'] ?>">
+                    <button type="submit" class="btn btn-sm btn-outline-danger border-0"
+                            title="Delete trip">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
