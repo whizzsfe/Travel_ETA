@@ -214,9 +214,9 @@ if (isset($_SESSION['flash'])) {
                 <tr>
                     <th>Run at</th>
                     <th>Target arrival</th>
-                    <th>Est. duration</th>
                     <th>Best departure</th>
                     <th>Est. arrival</th>
+                    <th title="Actual drive time with traffic (from Routes API)">Drive time</th>
                     <th title="How early (−) or late (+) vs. your target arrival time">Early / Late</th>
                     <th></th>
                 </tr>
@@ -226,7 +226,6 @@ if (isset($_SESSION['flash'])) {
                     <tr>
                         <td><?= h($s['run_at']) ?></td>
                         <td><?= h($s['target_arrival']) ?></td>
-                        <td><?= (int) $s['estimated_duration_minutes'] ?> min</td>
                         <td>
                             <?php if ($s['best_departure'] === null): ?>
                                 <span class="text-muted fst-italic">No result — all slots failed</span>
@@ -235,6 +234,12 @@ if (isset($_SESSION['flash'])) {
                             <?php endif; ?>
                         </td>
                         <td><?= $s['estimated_arrival'] !== null ? h($s['estimated_arrival']) : '—' ?></td>
+                        <td>
+                            <?php if ($s['duration_seconds'] !== null): ?>
+                                <?php $dm = (int)($s['duration_seconds'] / 60); $ds = (int)($s['duration_seconds'] % 60); ?>
+                                <?= $dm ?>m<?= $ds > 0 ? ' ' . $ds . 's' : '' ?>
+                            <?php else: ?>—<?php endif; ?>
+                        </td>
                         <td><?= deltaBadge($s, $s['delta_seconds'] !== null ? (int) $s['delta_seconds'] : null) ?></td>
                         <td>
                             <a href="trip.php?id=<?= $tripId ?>&search=<?= $s['id'] ?>"
