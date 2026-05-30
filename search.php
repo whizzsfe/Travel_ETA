@@ -148,8 +148,6 @@ foreach ($slots as $slotStr) {
         $record['static_duration_seconds'] = $staticDurationSec;
         $record['delta_seconds']           = $deltaSec;
 
-        $successResults[] = &$iterationData[count($iterationData)]; // will be added below
-
     } catch (Exception $e) {
         $record['error']         = 1;
         $record['error_message'] = mb_substr($e->getMessage(), 0, 255);
