@@ -117,14 +117,14 @@ Web-hosted PHP app that finds the best departure time for a trip by iterating th
 | Delta badge | `delta_seconds` < −900 — arrived > 15 min early | `badge bg-teal-400 text-white` |
 | Delta badge | `delta_seconds` > 0 + `searches.warning` set — least-late result | `badge bg-orange-500 text-white` |
 | Delta badge | `delta_seconds` > 0 — arrived late | `badge bg-red-600 text-white` |
-
-> **Delta badge in iterations drill-down:** `searches.warning` is a searches-level field, not per-iteration. For individual iteration rows, use orange when `is_best = 1 AND searches.warning IS NOT NULL`; use red when `delta_seconds > 0 AND NOT (is_best = 1 AND searches.warning IS NOT NULL)`.
 | Iterations table row | Best slot | `table-green-100` |
 | Iterations table row | Skipped (past departure) | `table-secondary` |
 | Iterations table row | API error | `table-orange-100` |
 | Button | Run Search | `btn btn-teal` + `bi-arrow-repeat` |
 | Button | New Trip | `btn btn-primary` |
 | Button | Delete trip (future) | `btn btn-danger` |
+
+> **Delta badge in iterations drill-down:** `searches.warning` is a searches-level field, not per-iteration. For individual iteration rows, use orange when `is_best = 1 AND searches.warning IS NOT NULL`; use red when `delta_seconds > 0 AND NOT (is_best = 1 AND searches.warning IS NOT NULL)`.
 
 ---
 
@@ -200,7 +200,7 @@ FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
 ## UX Flow
 
 ```
-index.php  (dashboard — handles its own POST at top of file before any HTML output)
+index.php  (dashboard — session_start() + require_once 'db.php' called directly at top before any HTML; POST handler runs next; then require_once 'header.php' for HTML output — same pattern as trip.php; header.php's session_start() guard prevents double-start)
   ├── GET: List all saved trips ordered newest first (ORDER BY created_at DESC): name, origin → destination
   │     └── Empty state: if no trips saved, show “No trips yet — add your first trip below”
   ├── Flash message display (from $_SESSION['flash'] — cleared after display)
@@ -217,14 +217,15 @@ index.php  (dashboard — handles its own POST at top of file before any HTML ou
         ├── POST validation failure → set flash danger error, redirect to index.php (form state lost — unavoidable with PlaceAutocompleteElement)
         └── POST success → saves trips row + trip_waypoints rows → redirect to trip.php?id={new_trip_id}
 
-trip.php  (trip detail)
+trip.php  (trip detail — validates ?id= and redirects BEFORE require_once 'header.php'; session_start() + require_once 'db.php' called directly at top for this purpose; header.php's session_start() is guarded so re-calling is safe; require_once prevents double-include of db.php)
   ├── Validate ?id= — must be positive integer and exist in trips; if absent/invalid/not found: set flash "Trip not found", redirect to index.php
   ├── Trip summary: name, origin, ordered waypoints, destination
+  ├── Flash message display (from $_SESSION['flash'] — cleared after display)
   ├── "Run Search" form (POST to search.php):
+  │     ├── trip_id             (hidden field — current trip's id)
   │     ├── Target arrival      (datetime-local — Europe/London)
   │     ├── Est. journey time   (numeric, minutes, min 5 enforced client+server side)
   │     └── CSRF token          (hidden field, validated server-side)
-  ├── Flash message display (from $_SESSION['flash'] — cleared after display)
   ├── Freshness indicator on most recent search (only shown when best_departure IS NOT NULL):
   │     ├── best_departure in the past     →  no banner shown (trip already departed)
   │     ├── ≤ 2h to best_departure         →  "Live traffic — high confidence"  (alert-teal)
@@ -240,7 +241,8 @@ trip.php  (trip detail)
 
 search.php  (no UI — processing only — does NOT include header.php or footer.php)
   ├── session_start() — called directly at top (not via header.php)
-  ├── Config bootstrap — checks config.php exists before including it; if missing, abort with safe error message (no server path disclosed); must include before any header() redirect
+  ├── Config bootstrap — check file_exists('config.php') before requiring db.php; if missing, output safe plain-text error and exit (db.php also does this check, but search.php must catch it first since no header() redirect is possible before db.php loads)
+  ├── require_once 'routes_api.php' — must be included before the loop; defines call_routes_api()
   ├── set_time_limit(120) — prevent shared-host timeout on 13 sequential cURL calls
   ├── Validate CSRF token from POST against $_SESSION['csrf_token'] — reject if mismatch; if mismatch or token absent: flash error, redirect to index.php, exit
   ├── Validate trip_id (positive integer), target_arrival (valid datetime — format check only, need not be future; past-slot skipping handles the rest), estimated_duration_minutes (integer ≥ 5)
@@ -251,23 +253,27 @@ search.php  (no UI — processing only — does NOT include header.php or footer
   ├── Calculates 13 slots: centre = target_arrival − estimated_duration_minutes, ±60min, 10min steps
   ├── For each slot:
   │     ├── If departure_time < NOW → record as skipped=1, do not call API, continue loop
-  │     ├── Else → call routes_api.php → on API failure → record error=1, error_message, continue loop
+  │     ├── Else → call call_routes_api($originPlaceId, $destPlaceId, $intermediates, $slotLondon) → catch Exception → record error=1, error_message, continue loop
   │     └── On success → parse duration string (strip 's' suffix with rtrim)
   │           → compute estimated_arrival = departure_time + duration_seconds
   │           → compute and store delta_seconds = estimated_arrival − target_arrival (signed seconds)
-  ├── If ALL slots skipped → flash "All departure times are in the past", save searches row with NULLs, redirect to trip.php
-  ├── If ALL slots errored → flash "All API calls failed — check API key and quota", save searches row with NULLs, redirect to trip.php
-  ├── If zero valid results (mixed skipped+errored) → flash "No valid departure times — all slots were in the past or returned an API error", save searches row with NULLs, redirect to trip.php
   ├── Post-loop — from successful (non-skipped, non-error) iterations:
   │     ├── On-time slots: where delta_seconds ≤ 0 — pick the one minimising abs(delta_seconds + 900) (closest to 15min early; tiebreak = later departure)
   │     └── If no on-time slots → pick least-late (minimum positive delta_seconds), set searches.warning = 'All valid slots arrived late'
-  ├── Saves one searches row (NULLs if no result) + 13 iterations rows (is_best + skipped + error flagged)
-  ├── Set $_SESSION['flash'] with result; rendered by trip.php on next load then unset
-  ├── Redirect target summary:
+  ├── Save searches row + all 13 iterations rows — ALWAYS, regardless of outcome:
+  │     ├── best_departure / estimated_arrival / delta_seconds / duration_seconds / static_duration_seconds = NULL when no valid result
+  │     └── is_best / skipped / error flagged per iteration row
+  ├── Set $_SESSION['flash'] based on outcome:
+  │     ├── All slots skipped   →  "All departure times are in the past"  (danger)
+  │     ├── All slots errored   →  "All API calls failed — check API key and quota"  (danger)
+  │     ├── Mixed, zero valid   →  "No valid departure times — all slots were in the past or returned an API error"  (danger)
+  │     ├── Success + warning   →  summarise best departure + estimated arrival + "Note: all slots arrived late — consider an earlier target time"  (warning)
+  │     └── Clean success       →  summarise best departure + estimated arrival  (success)
+  ├── Redirect to trip.php?id={trip_id} — all normal outcomes (no-result or success)
+  ├── Early-exit redirect overrides (before save step):
   │     CSRF fail / input validation fail  →  index.php (trip_id not yet trusted)
-  │     Trip not found in DB  →  index.php
-  │     config.php missing  →  output plain-text safe error and exit (header() impossible — config not loaded)
-  │     All other outcomes (no-result or success)  →  trip.php?id={trip_id}
+  │     Trip not found in DB              →  index.php
+  │     config.php missing               →  plain-text safe error and exit (no header() possible — db.php not yet loaded)
   └── Always call exit() immediately after header('Location: ...')
 ```
 
@@ -281,10 +287,11 @@ Travel_ETA/
 ├── trip.php          # Trip detail — stops, search history, re-run, drill-down
 ├── search.php        # POST handler — loop, save results, redirect
 ├── routes_api.php    # cURL wrapper — builds Routes API payload, converts Europe/London → UTC ISO 8601 for departureTime
+│                     #   Signature: call_routes_api(string $originPlaceId, string $destPlaceId, array $intermediates, string $departureLondon): array
 │                     #   Returns: ['duration' => int, 'static_duration' => int] on success
 │                     #   Throws: Exception (message = human-readable reason; caught per-slot in search.php)
-├── db.php            # PDO connect + CREATE TABLE IF NOT EXISTS ENGINE=InnoDB; does require_once 'config.php' internally
-├── header.php        # session_start(), CSRF init (if not set), function h(), require_once 'db.php', HTML head + asset links + navbar (index.php + trip.php only)
+├── db.php            # Checks file_exists('config.php') first — die() with safe message if missing (protects index.php + trip.php from path-disclosing fatal errors); then require_once 'config.php'; PDO connect + CREATE TABLE IF NOT EXISTS ENGINE=InnoDB
+├── header.php        # if (session_status() === PHP_SESSION_NONE) session_start(); CSRF init (if not set), function h(), require_once 'db.php', HTML head + asset links + navbar (index.php + trip.php only)
 ├── footer.php        # closing HTML, window.initPlaces + attachAutocomplete JS, Maps <script async> tag (index.php + trip.php only — NOT search.php)
 ├── config.php        # API keys + DB credentials (gitignored — never committed)
 ├── config.sample.php # Committed template — copy to config.php on server; defines:
@@ -303,7 +310,7 @@ Travel_ETA/
 
 ## Security
 - `config.php` never committed — listed in `.gitignore`
-- All pages call `session_start()` at top; `config.php` checked for existence before include; missing file shows safe error (no path disclosed)
+- All pages call `session_start()` at top (guarded with `session_status() === PHP_SESSION_NONE`); `db.php` checks `file_exists('config.php')` before including it and calls `die()` with a safe message if missing (no path disclosed); `search.php` additionally checks before requiring `db.php` since no `header()` redirect is possible at that point
 - **CSRF tokens** — token generated once per session and stored in `$_SESSION['csrf_token']` by `header.php` (if not already set); embedded as hidden field in all forms (`index.php` new-trip form, `trip.php` run-search form); validated in every POST handler; never regenerated mid-session (avoids breaking browser back button)
 - All DB writes use PDO prepared statements (no string interpolation in queries)
 - **`$_SESSION['flash']` structure**: `['type' => 'success'|'warning'|'danger', 'message' => '...']`; always rendered through `htmlspecialchars()` before output; unset immediately after display
