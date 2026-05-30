@@ -25,24 +25,38 @@
         inputEl.style.display = 'none';
 
         function clearHiddenFields() {
-            setField(prefix, 'place_id', '');
+            setField(prefix, 'place_id',     '');
             setField(prefix, 'display_name', '');
-            setField(prefix, 'lat', '');
-            setField(prefix, 'lng', '');
+            setField(prefix, 'lat',          '');
+            setField(prefix, 'lng',          '');
         }
 
-        // Clear stale place_id if user edits the autocomplete text without re-selecting.
-        pac.addEventListener('input', clearHiddenFields);
+        // Note: do NOT bind clearHiddenFields to the 'input' event on the PAC element.
+        // PlaceAutocompleteElement fires 'input' when it updates its own text after a
+        // gmp-placeselect, which would clear the hidden fields we just set.
 
         pac.addEventListener('gmp-placeselect', function(event) {
             var place = event.place;
 
-            // Fetch geometry + display name
-            place.fetchFields({ fields: ['displayName', 'location', 'id'] }).then(function() {
+            // Clear any stale values from a previous selection first.
+            clearHiddenFields();
+
+            // place.id is populated immediately on the Place object — set it without
+            // waiting for fetchFields so the value is available even if fetchFields is slow.
+            if (place.id) {
+                setField(prefix, 'place_id', place.id);
+            }
+
+            // Fetch display name + coordinates (not available before fetchFields).
+            place.fetchFields({ fields: ['displayName', 'location'] }).then(function() {
                 setField(prefix, 'place_id',     place.id);
                 setField(prefix, 'display_name', place.displayName);
                 setField(prefix, 'lat',          place.location.lat());
                 setField(prefix, 'lng',          place.location.lng());
+            }).catch(function(err) {
+                // fetchFields failed — clear fields so stale/partial data isn't submitted.
+                clearHiddenFields();
+                console.error('PlaceAutocomplete fetchFields error:', err);
             });
         });
     }
@@ -54,12 +68,15 @@
      */
     function setField(prefix, field, value) {
         // Build the name attribute: flat for origin/destination, array syntax for waypoints.
+        // For flat prefixes, 'display_name' maps to the '_display' suffix used in the HTML
+        // (origin_display, destination_display) to match the DB column names.
         var name;
         if (prefix.indexOf('[') === -1) {
             // origin / destination
-            name = prefix + '_' + field;
+            var suffix = (field === 'display_name') ? 'display' : field;
+            name = prefix + '_' + suffix;
         } else {
-            // waypoints[N]
+            // waypoints[N] — array syntax, field name used as-is (waypoints[0][display_name])
             name = prefix + '[' + field + ']';
         }
         var el = document.querySelector('input[name="' + name + '"]');
