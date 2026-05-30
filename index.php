@@ -181,6 +181,13 @@ $trips = $pdo->query(
      ORDER BY t.created_at DESC'
 )->fetchAll();
 
+/**
+ * Format a UTC/London datetime string for display.
+ *
+ * @param string|null $dt Datetime string in 'Y-m-d H:i:s' format (stored as Europe/London), or null.
+ *
+ * @return string Human-readable date such as "Fri 30 May, 08:35", or an em-dash when null.
+ */
 function fmtDt(?string $dt): string {
     if ($dt === null) return '—';
     return (new DateTime($dt, new DateTimeZone('Europe/London')))->format('D j M, H:i');

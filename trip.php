@@ -65,6 +65,21 @@ if ($drillSearchId > 0) {
 // ---------------------------------------------------------------------------
 // Helper: format delta_seconds as a human-readable string with a badge
 // ---------------------------------------------------------------------------
+/**
+ * Render a Bootstrap badge showing how early or late an arrival is.
+ *
+ * Colour coding:
+ * - Green  : 0–15 min early (ideal window)
+ * - Teal   : more than 15 min early
+ * - Orange : least-late slot when a warning flag is set
+ * - Red    : late arrival
+ *
+ * @param array    $search      The search or iteration row from the database.
+ * @param int|null $deltaSec    Signed seconds: negative = early, positive = late, null = unknown.
+ * @param bool     $isIteration True when rendering an individual iteration row rather than the search summary.
+ *
+ * @return string HTML <span> badge element.
+ */
 function deltaBadge(array $search, ?int $deltaSec, bool $isIteration = false): string {
     if ($deltaSec === null) {
         return '<span class="badge bg-secondary">—</span>';
@@ -102,6 +117,18 @@ function deltaBadge(array $search, ?int $deltaSec, bool $isIteration = false): s
 // ---------------------------------------------------------------------------
 // Freshness banner logic
 // ---------------------------------------------------------------------------
+/**
+ * Render a traffic-freshness alert banner based on how far away the best departure is.
+ *
+ * - Returns an empty string if there is no completed search.
+ * - Returns an empty string if the best departure has already passed.
+ * - Within 2 hours: "Live traffic" teal banner.
+ * - Beyond 2 hours: orange warning to re-run closer to departure.
+ *
+ * @param array|null $search The most recent search row, or null if none exists.
+ *
+ * @return string HTML alert <div>, or an empty string.
+ */
 function freshnessBanner(?array $search): string {
     if (!$search || $search['best_departure'] === null) {
         return '';

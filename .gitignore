@@ -2,3 +2,8 @@ config.php
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# phpDocumentor output (published to gh-pages branch by CI)
+docs/api/
+.phpdoc/
+phpDocumentor.phar

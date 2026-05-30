@@ -12,6 +12,13 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 
 // XSS helper — use h() everywhere user-supplied data is rendered in HTML.
+/**
+ * Escape a string for safe HTML output.
+ *
+ * @param string $v Raw value (user-supplied or from DB).
+ *
+ * @return string HTML-encoded string safe for use in attributes and text nodes.
+ */
 function h(string $v): string {
     return htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
 }

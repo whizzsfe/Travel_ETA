@@ -300,6 +300,13 @@ $countSkipped = count(array_filter($iterationData, function($r) { return $r['ski
 $countError   = count(array_filter($iterationData, function($r) { return $r['error']; }));
 $countSuccess = count($successResults);
 
+/**
+ * Format a departure datetime string for display in flash messages and history.
+ *
+ * @param string $dt Datetime in any format parseable by {@see DateTime}.
+ *
+ * @return string Human-readable string such as "Fri 30 May, 08:35".
+ */
 function formatDeparture(string $dt): string {
     return (new DateTime($dt))->format('D j M, H:i');
 }
