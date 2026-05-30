@@ -166,7 +166,7 @@ FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
 id                          INT AUTO_INCREMENT PRIMARY KEY,
 trip_id                     INT NOT NULL,
 target_arrival              DATETIME NOT NULL,  -- Europe/London; set per run, can differ between runs
-estimated_duration_minutes  SMALLINT UNSIGNED,  -- min 5; centres the ±60min slot window; UNSIGNED prevents negatives but values 1–4 are not blocked by MySQL — PHP must enforce ≥ 5 before insert
+estimated_duration_minutes  SMALLINT UNSIGNED NOT NULL,  -- min 5; UNSIGNED prevents negatives but values 1–4 not blocked by MySQL — PHP must enforce ≥ 5 before insert; centres the ±60min slot window
 run_at                      DATETIME NOT NULL,  -- set in PHP (Europe/London); avoids MySQL UTC session timezone conflict
 best_departure              DATETIME,           -- NULL if all slots skipped/errored
 estimated_arrival           DATETIME,           -- NULL if all slots skipped/errored
@@ -222,10 +222,10 @@ trip.php  (trip detail)
   │     ├── Est. journey time   (numeric, minutes, min 5 enforced client+server side)
   │     └── CSRF token          (hidden field, validated server-side)
   ├── Flash message display (from $_SESSION['flash'] — cleared after display)
-  ├── Freshness indicator on most recent search (only shown when best_departure IS NOT NULL AND best_departure > NOW()):
-  │     ├── ≤ 2h to best_departure  →  "Live traffic — high confidence"  (alert-teal)
-  │     ├── > 2h to best_departure  →  "Re-run closer to departure for better accuracy"  (alert-orange)
-  │     └── best_departure in the past  →  no freshness banner (trip already departed)
+  ├── Freshness indicator on most recent search (only shown when best_departure IS NOT NULL):
+  │     ├── best_departure in the past     →  no banner shown (trip already departed)
+  │     ├── ≤ 2h to best_departure         →  "Live traffic — high confidence"  (alert-teal)
+  │     └── > 2h to best_departure         →  "Re-run closer to departure for better accuracy"  (alert-orange)
   ├── Search history table (searches, newest first):
   │     run_at | target_arrival | best_departure | estimated_arrival | delta | duration
   │     Handle NULL best_departure/estimated_arrival gracefully (show "No result — all slots failed")
