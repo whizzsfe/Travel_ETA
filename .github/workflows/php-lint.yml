@@ -1,0 +1,22 @@
+name: PHP 7.4 Syntax Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Check syntax on all PHP files
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
