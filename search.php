@@ -1,4 +1,7 @@
 <?php
+// TEMPORARY — remove after diagnosis
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 
 // No HTML output — this file only processes POST and redirects.
 
