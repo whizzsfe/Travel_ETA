@@ -148,8 +148,27 @@ if (isset($_SESSION['flash'])) {
        . '</div>';
 }
 
-// Trip list
-$trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll();
+// Trip list with latest search result per trip
+$trips = $pdo->query(
+    'SELECT t.*,
+            s.target_arrival   AS last_target_arrival,
+            s.best_departure   AS last_best_departure,
+            s.estimated_arrival AS last_est_arrival,
+            s.warning          AS last_warning
+     FROM trips t
+     LEFT JOIN searches s ON s.id = (
+         SELECT id FROM searches
+         WHERE trip_id = t.id
+         ORDER BY run_at DESC
+         LIMIT 1
+     )
+     ORDER BY t.created_at DESC'
+)->fetchAll();
+
+function fmtDt(?string $dt): string {
+    if ($dt === null) return '—';
+    return (new DateTime($dt, new DateTimeZone('Europe/London')))->format('D j M, H:i');
+}
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -162,16 +181,27 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
     <div class="list-group mb-4">
         <?php foreach ($trips as $trip): ?>
             <a href="trip.php?id=<?= $trip['id'] ?>"
-               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                <div>
-                    <strong><?= h($trip['name']) ?></strong>
-                    <div class="text-muted small">
-                        <i class="bi bi-geo-alt-fill me-1"></i><?= h($trip['origin_display']) ?>
-                        <i class="bi bi-arrow-right mx-1"></i>
-                        <i class="bi bi-flag-fill me-1"></i><?= h($trip['destination_display']) ?>
+               class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong><?= h($trip['name']) ?></strong>
+                        <div class="text-muted small">
+                            <i class="bi bi-geo-alt-fill me-1"></i><?= h($trip['origin_display']) ?>
+                            <i class="bi bi-arrow-right mx-1"></i>
+                            <i class="bi bi-flag-fill me-1"></i><?= h($trip['destination_display']) ?>
+                        </div>
+                        <?php if ($trip['last_best_departure'] !== null): ?>
+                            <div class="small mt-1">
+                                <span class="text-muted">Target:</span> <?= fmtDt($trip['last_target_arrival']) ?>
+                                &nbsp;<i class="bi bi-arrow-right"></i>&nbsp;
+                                <span class="text-muted">Depart:</span> <strong><?= fmtDt($trip['last_best_departure']) ?></strong>
+                            </div>
+                        <?php elseif ($trip['last_target_arrival'] !== null): ?>
+                            <div class="small mt-1 text-muted fst-italic">Last search: no result</div>
+                        <?php endif; ?>
                     </div>
+                    <i class="bi bi-chevron-right text-muted"></i>
                 </div>
-                <i class="bi bi-chevron-right text-muted"></i>
             </a>
         <?php endforeach; ?>
     </div>

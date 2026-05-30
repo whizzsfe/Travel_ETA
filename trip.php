@@ -225,15 +225,15 @@ if (isset($_SESSION['flash'])) {
                 <?php foreach ($searchHistory as $s): ?>
                     <tr>
                         <td><?= h($s['run_at']) ?></td>
-                        <td><?= h($s['target_arrival']) ?></td>
+                        <td><?= (new DateTime($s['target_arrival'], new DateTimeZone('Europe/London')))->format('D j M, H:i') ?></td>
                         <td>
                             <?php if ($s['best_departure'] === null): ?>
                                 <span class="text-muted fst-italic">No result — all slots failed</span>
                             <?php else: ?>
-                                <?= h($s['best_departure']) ?>
+                                <?= (new DateTime($s['best_departure'], new DateTimeZone('Europe/London')))->format('D j M, H:i') ?>
                             <?php endif; ?>
                         </td>
-                        <td><?= $s['estimated_arrival'] !== null ? h($s['estimated_arrival']) : '—' ?></td>
+                        <td><?= $s['estimated_arrival'] !== null ? (new DateTime($s['estimated_arrival'], new DateTimeZone('Europe/London')))->format('D j M, H:i') : '—' ?></td>
                         <td>
                             <?php if ($s['duration_seconds'] !== null): ?>
                                 <?php $dm = (int)($s['duration_seconds'] / 60); $ds = (int)($s['duration_seconds'] % 60); ?>
