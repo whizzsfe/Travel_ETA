@@ -48,14 +48,17 @@
             }
 
             // Fetch display name + coordinates (not available before fetchFields).
-            place.fetchFields({ fields: ['displayName', 'location'] }).then(function() {
+            place.fetchFields({ fields: ['id', 'displayName', 'location'] }).then(function() {
                 setField(prefix, 'place_id',     place.id);
                 setField(prefix, 'display_name', place.displayName);
                 setField(prefix, 'lat',          place.location.lat());
                 setField(prefix, 'lng',          place.location.lng());
             }).catch(function(err) {
-                // fetchFields failed — clear fields so stale/partial data isn't submitted.
-                clearHiddenFields();
+                // fetchFields failed — only clear display/lat/lng; preserve place_id
+                // which was already set from place.id before fetchFields was called.
+                setField(prefix, 'display_name', '');
+                setField(prefix, 'lat',          '');
+                setField(prefix, 'lng',          '');
                 console.error('PlaceAutocomplete fetchFields error:', err);
             });
         });
@@ -95,10 +98,12 @@
     }
 </script>
 
-<!-- Google Maps JS — async + callback=initPlaces. Do NOT use defer (deferred scripts
-     are not ready when inline footer JS above has already run). -->
-<script async
-    src="https://maps.googleapis.com/maps/api/js?key=<?= h(PLACES_API_KEY) ?>&libraries=places&v=beta&callback=initPlaces">
+<!-- Google Maps JS — loading=async (URL param) + callback=initPlaces.
+     loading=async is required by the new Maps API loader; the HTML async attribute
+     alone is not sufficient and produces a console warning. -->
+<script
+    src="https://maps.googleapis.com/maps/api/js?key=<?= h(PLACES_API_KEY) ?>&loading=async&libraries=places&v=beta&callback=initPlaces"
+    async>
 </script>
 
 </html>

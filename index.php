@@ -265,4 +265,34 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
     });
 </script>
 
+<script>
+    // Client-side guard: prevent form submission if place_id hidden fields are empty.
+    // This gives immediate feedback rather than a server round-trip flash message.
+    document.getElementById('newTripForm').addEventListener('submit', function(e) {
+        var originId = document.querySelector('input[name="origin_place_id"]');
+        var destId   = document.querySelector('input[name="destination_place_id"]');
+
+        if (!originId || !originId.value.trim()) {
+            e.preventDefault();
+            alert('Please select an origin from the autocomplete dropdown.');
+            return;
+        }
+        if (!destId || !destId.value.trim()) {
+            e.preventDefault();
+            alert('Please select a destination from the autocomplete dropdown.');
+            return;
+        }
+
+        // Validate any waypoints added dynamically.
+        var wpInputs = document.querySelectorAll('#waypointsContainer input[type="hidden"][name$="[place_id]"]');
+        for (var i = 0; i < wpInputs.length; i++) {
+            if (!wpInputs[i].value.trim()) {
+                e.preventDefault();
+                alert('Please select all waypoints from the dropdown, or remove incomplete ones.');
+                return;
+            }
+        }
+    });
+</script>
+
 <?php require_once __DIR__ . '/footer.php'; ?>
