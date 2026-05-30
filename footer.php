@@ -28,25 +28,25 @@
         }
 
         function handlePlaceSelect(event) {
-            // event.place is the standard property; event.detail.place is a fallback for
-            // some API versions that dispatch through CustomEvent.
-            var place = event.place || (event.detail && event.detail.place);
-            console.log('[TravelETA] placeselect event:', event.type,
-                '| prefix:', prefix,
-                '| place:', place,
-                '| place.id:', place ? place.id : 'NONE');
+            // New Places API (v=beta/weekly): event.placePrediction is a PlacePrediction object.
+            // Call .toPlace() to get a Place, then fetchFields() to populate its properties.
+            // Older API: event.place is a Place object directly.
+            var prediction = event.placePrediction || null;
+            var place      = event.place || null;
+
+            if (prediction && typeof prediction.toPlace === 'function') {
+                // Current API path
+                place = prediction.toPlace();
+            }
 
             if (!place) {
-                console.warn('[TravelETA] No place in event — user may not have clicked a suggestion');
+                console.warn('[TravelETA] No place in event. event.type:', event.type,
+                    '| event.placePrediction:', event.placePrediction,
+                    '| event.place:', event.place);
                 return;
             }
 
             clearHiddenFields();
-
-            if (place.id) {
-                setField(prefix, 'place_id', place.id);
-                console.log('[TravelETA] Immediately set place_id =', place.id);
-            }
 
             place.fetchFields({ fields: ['id', 'displayName', 'location'] }).then(function() {
                 setField(prefix, 'place_id',     place.id);
@@ -66,9 +66,9 @@
             });
         }
 
-        // The event name has varied across API versions — listen to both.
-        pac.addEventListener('gmp-placeselect', handlePlaceSelect);
+        // Current API fires 'gmp-select'; listen to both names for compatibility.
         pac.addEventListener('gmp-select',      handlePlaceSelect);
+        pac.addEventListener('gmp-placeselect', handlePlaceSelect);
     }
 
     function setField(prefix, field, value) {
