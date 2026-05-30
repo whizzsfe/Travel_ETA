@@ -41,6 +41,9 @@
             // Clear any stale values from a previous selection first.
             clearHiddenFields();
 
+            // Debug logging — remove once place_id issue is confirmed resolved.
+            console.log('[TravelETA gmp-placeselect] prefix:', prefix, '| place.id:', place ? place.id : 'NO PLACE');
+
             // place.id is populated immediately on the Place object — set it without
             // waiting for fetchFields so the value is available even if fetchFields is slow.
             if (place.id) {

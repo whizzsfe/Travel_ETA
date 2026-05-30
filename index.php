@@ -222,6 +222,8 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
         <input type="hidden" name="destination_lng"       value="">
     </div>
 
+    <div id="tripFormError" class="alert alert-danger d-none" role="alert"></div>
+
     <button type="submit" class="btn btn-primary">
         <i class="bi bi-floppy-fill me-1"></i>Save Trip
     </button>
@@ -267,19 +269,36 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
 
 <script>
     // Client-side guard: prevent form submission if place_id hidden fields are empty.
-    // This gives immediate feedback rather than a server round-trip flash message.
+    function showFormError(msg) {
+        var el = document.getElementById('tripFormError');
+        el.textContent = msg;
+        el.classList.remove('d-none');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function hideFormError() {
+        var el = document.getElementById('tripFormError');
+        el.classList.add('d-none');
+        el.textContent = '';
+    }
+
     document.getElementById('newTripForm').addEventListener('submit', function(e) {
+        hideFormError();
+
         var originId = document.querySelector('input[name="origin_place_id"]');
         var destId   = document.querySelector('input[name="destination_place_id"]');
 
+        // Debug: log current hidden field values so you can diagnose empty-field issues.
+        console.log('[TravelETA submit] origin_place_id:', originId ? originId.value : 'ELEMENT NOT FOUND');
+        console.log('[TravelETA submit] destination_place_id:', destId ? destId.value : 'ELEMENT NOT FOUND');
+
         if (!originId || !originId.value.trim()) {
             e.preventDefault();
-            alert('Please select an origin from the autocomplete dropdown.');
+            showFormError('Please select an origin from the autocomplete dropdown.');
             return;
         }
         if (!destId || !destId.value.trim()) {
             e.preventDefault();
-            alert('Please select a destination from the autocomplete dropdown.');
+            showFormError('Please select a destination from the autocomplete dropdown.');
             return;
         }
 
@@ -288,7 +307,7 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
         for (var i = 0; i < wpInputs.length; i++) {
             if (!wpInputs[i].value.trim()) {
                 e.preventDefault();
-                alert('Please select all waypoints from the dropdown, or remove incomplete ones.');
+                showFormError('Please select all waypoints from the dropdown, or remove incomplete ones.');
                 return;
             }
         }
