@@ -117,6 +117,8 @@ Web-hosted PHP app that finds the best departure time for a trip by iterating th
 | Delta badge | `delta_seconds` < −900 — arrived > 15 min early | `badge bg-teal-400 text-white` |
 | Delta badge | `delta_seconds` > 0 + `searches.warning` set — least-late result | `badge bg-orange-500 text-white` |
 | Delta badge | `delta_seconds` > 0 — arrived late | `badge bg-red-600 text-white` |
+
+> **Delta badge in iterations drill-down:** `searches.warning` is a searches-level field, not per-iteration. For individual iteration rows, use orange when `is_best = 1 AND searches.warning IS NOT NULL`; use red when `delta_seconds > 0 AND NOT (is_best = 1 AND searches.warning IS NOT NULL)`.
 | Iterations table row | Best slot | `table-green-100` |
 | Iterations table row | Skipped (past departure) | `table-secondary` |
 | Iterations table row | API error | `table-orange-100` |
@@ -204,9 +206,9 @@ index.php  (dashboard — handles its own POST at top of file before any HTML ou
   ├── Flash message display (from $_SESSION['flash'] — cleared after display)
   └── "New Trip" form (POST handled at top of same file)
         ├── Trip name           (required, non-empty enforced client + server side)
-        ├── Origin              (PlaceAutocompleteElement + hidden place_id/lat/lng)
+        ├── Origin              (PlaceAutocompleteElement + hidden place_id/display_name/lat/lng)
         ├── Waypoints[]         (dynamic add/remove — each added input gets a new PlaceAutocompleteElement bound to it via JS)
-        ├── Destination         (PlaceAutocompleteElement + hidden place_id/lat/lng)
+        ├── Destination         (PlaceAutocompleteElement + hidden place_id/display_name/lat/lng)
         ├── CSRF token          (hidden field, validated server-side)
         ├── Server-side: validate CSRF token — if mismatch or absent: flash danger, redirect to index.php, exit
         ├── Server-side: reject if trip name empty
