@@ -287,10 +287,6 @@ $trips = $pdo->query('SELECT * FROM trips ORDER BY created_at DESC')->fetchAll()
         var originId = document.querySelector('input[name="origin_place_id"]');
         var destId   = document.querySelector('input[name="destination_place_id"]');
 
-        // Debug: log current hidden field values so you can diagnose empty-field issues.
-        console.log('[TravelETA submit] origin_place_id:', originId ? originId.value : 'ELEMENT NOT FOUND');
-        console.log('[TravelETA submit] destination_place_id:', destId ? destId.value : 'ELEMENT NOT FOUND');
-
         if (!originId || !originId.value.trim()) {
             e.preventDefault();
             showFormError('Please select an origin from the autocomplete dropdown.');
