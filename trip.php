@@ -313,7 +313,8 @@ if (isset($_SESSION['flash'])) {
                                 <i class="bi bi-skip-forward-fill text-secondary" title="Skipped — departure in past"></i>
                             <?php endif; ?>
                             <?php if ($iter['error']): ?>
-                                <i class="bi bi-x-circle-fill text-danger" title="<?= h($iter['error_message'] ?? 'API error') ?>"></i>
+                                <i class="bi bi-x-circle-fill text-danger"></i>
+                                <small class="text-danger ms-1"><?= h($iter['error_message'] ?? 'API error') ?></small>
                             <?php endif; ?>
                         </td>
                     </tr>

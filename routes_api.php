@@ -63,13 +63,16 @@ function call_routes_api(
     }
 
     if ($httpCode !== 200) {
-        throw new Exception('Routes API returned HTTP ' . $httpCode);
+        // Include the response body so the error message (e.g. "API key not valid") is visible
+        $preview = mb_substr((string)$body, 0, 300);
+        throw new Exception('Routes API HTTP ' . $httpCode . ': ' . $preview);
     }
 
     $data = json_decode($body, true);
 
     if (empty($data['routes'][0]['duration']) || empty($data['routes'][0]['staticDuration'])) {
-        throw new Exception('Routes API response missing duration data');
+        $preview = mb_substr((string)$body, 0, 300);
+        throw new Exception('Routes API response missing duration: ' . $preview);
     }
 
     // Duration is returned as a string with an 's' suffix e.g. "1234s"
