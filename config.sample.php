@@ -4,11 +4,10 @@
 // gets the timezone applied immediately (handles GMT/BST automatically).
 date_default_timezone_set('Europe/London');
 
-// Database credentials
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'your_database_name');
-define('DB_USER', 'your_database_user');
-define('DB_PASS', 'your_database_password');
+// SQLite database file path — must be writable by the web server.
+// Recommended: store outside the web root to prevent direct download.
+// Example on cPanel: '/home/yourusername/travel_eta.sqlite'
+define('DB_PATH', __DIR__ . '/travel_eta.sqlite');
 
 // Google Routes API key — server IP-restricted; Routes API permission only.
 // Do NOT enable Places API on this key.

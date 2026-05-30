@@ -8,84 +8,82 @@ if (!file_exists(__DIR__ . '/config.php')) {
 
 require_once __DIR__ . '/config.php';
 
-// PDO connection
+// PDO connection (SQLite)
 try {
-    $pdo = new PDO(
-        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4',
-        DB_USER,
-        DB_PASS,
-        [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]
-    );
+    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
 } catch (PDOException $e) {
     die('Database connection failed. Please contact the administrator.');
 }
 
-// Bootstrap schema — all tables use ENGINE=InnoDB for foreign key enforcement.
+// Enable foreign key enforcement (must be set per-connection in SQLite)
+$pdo->exec('PRAGMA foreign_keys = ON');
+// WAL mode gives better read concurrency on shared hosts
+$pdo->exec('PRAGMA journal_mode = WAL');
+
+// Bootstrap schema
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS trips (
-        id                   INT AUTO_INCREMENT PRIMARY KEY,
-        name                 VARCHAR(255) NOT NULL,
-        origin_display       VARCHAR(500) NOT NULL,
-        origin_place_id      VARCHAR(255) NOT NULL,
-        origin_lat           DECIMAL(10,7) NOT NULL,
-        origin_lng           DECIMAL(10,7) NOT NULL,
-        destination_display  VARCHAR(500) NOT NULL,
-        destination_place_id VARCHAR(255) NOT NULL,
-        destination_lat      DECIMAL(10,7) NOT NULL,
-        destination_lng      DECIMAL(10,7) NOT NULL,
-        trip_hash            VARCHAR(32) NOT NULL,
-        created_at           DATETIME NOT NULL,
-        UNIQUE KEY uq_trip_hash (trip_hash)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        name                 TEXT NOT NULL,
+        origin_display       TEXT NOT NULL,
+        origin_place_id      TEXT NOT NULL,
+        origin_lat           REAL NOT NULL,
+        origin_lng           REAL NOT NULL,
+        destination_display  TEXT NOT NULL,
+        destination_place_id TEXT NOT NULL,
+        destination_lat      REAL NOT NULL,
+        destination_lng      REAL NOT NULL,
+        trip_hash            TEXT NOT NULL UNIQUE,
+        created_at           TEXT NOT NULL
+    )
 ");
 
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS trip_waypoints (
-        id           INT AUTO_INCREMENT PRIMARY KEY,
-        trip_id      INT NOT NULL,
-        display_name VARCHAR(500) NOT NULL,
-        place_id     VARCHAR(255) NOT NULL,
-        lat          DECIMAL(10,7) NOT NULL,
-        lng          DECIMAL(10,7) NOT NULL,
-        stop_order   TINYINT UNSIGNED NOT NULL,
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id      INTEGER NOT NULL,
+        display_name TEXT NOT NULL,
+        place_id     TEXT NOT NULL,
+        lat          REAL NOT NULL,
+        lng          REAL NOT NULL,
+        stop_order   INTEGER NOT NULL,
         FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    )
 ");
 
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS searches (
-        id                         INT AUTO_INCREMENT PRIMARY KEY,
-        trip_id                    INT NOT NULL,
-        target_arrival             DATETIME NOT NULL,
-        estimated_duration_minutes SMALLINT UNSIGNED NOT NULL,
-        run_at                     DATETIME NOT NULL,
-        best_departure             DATETIME,
-        estimated_arrival          DATETIME,
-        delta_seconds              INT,
-        duration_seconds           INT,
-        static_duration_seconds    INT,
-        warning                    VARCHAR(255),
+        id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id                    INTEGER NOT NULL,
+        target_arrival             TEXT NOT NULL,
+        estimated_duration_minutes INTEGER NOT NULL,
+        run_at                     TEXT NOT NULL,
+        best_departure             TEXT,
+        estimated_arrival          TEXT,
+        delta_seconds              INTEGER,
+        duration_seconds           INTEGER,
+        static_duration_seconds    INTEGER,
+        warning                    TEXT,
         FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    )
 ");
 
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS iterations (
-        id                      INT AUTO_INCREMENT PRIMARY KEY,
-        search_id               INT NOT NULL,
-        departure_time          DATETIME NOT NULL,
-        estimated_arrival       DATETIME,
-        duration_seconds        INT,
-        static_duration_seconds INT,
-        delta_seconds           INT,
-        is_best                 TINYINT(1) NOT NULL DEFAULT 0,
-        skipped                 TINYINT(1) NOT NULL DEFAULT 0,
-        error                   TINYINT(1) NOT NULL DEFAULT 0,
-        error_message           VARCHAR(255),
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        search_id               INTEGER NOT NULL,
+        departure_time          TEXT NOT NULL,
+        estimated_arrival       TEXT,
+        duration_seconds        INTEGER,
+        static_duration_seconds INTEGER,
+        delta_seconds           INTEGER,
+        is_best                 INTEGER NOT NULL DEFAULT 0,
+        skipped                 INTEGER NOT NULL DEFAULT 0,
+        error                   INTEGER NOT NULL DEFAULT 0,
+        error_message           TEXT,
         FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    )
 ");
