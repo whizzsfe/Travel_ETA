@@ -217,7 +217,7 @@ if (isset($_SESSION['flash'])) {
                     <th>Est. duration</th>
                     <th>Best departure</th>
                     <th>Est. arrival</th>
-                    <th>Delta</th>
+                    <th title="How early (−) or late (+) vs. your target arrival time">Early / Late</th>
                     <th></th>
                 </tr>
             </thead>
@@ -261,9 +261,9 @@ if (isset($_SESSION['flash'])) {
                 <tr>
                     <th>Departure</th>
                     <th>Est. arrival</th>
-                    <th>Delta</th>
-                    <th>Duration</th>
-                    <th>Static duration</th>
+                    <th title="How early (−) or late (+) vs. your target arrival time">Early / Late</th>
+                    <th>Drive time</th>
+                    <th>Without traffic</th>
                     <th>Flags</th>
                 </tr>
             </thead>
