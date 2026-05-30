@@ -1,7 +1,25 @@
 <?php
 // TEMPORARY — remove after diagnosis
 ini_set('display_errors', '1');
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/php_error_debug.log');
 error_reporting(E_ALL);
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    file_put_contents(__DIR__ . '/php_error_debug.log',
+        date('Y-m-d H:i:s') . " [$errno] $errstr in $errfile on line $errline\n",
+        FILE_APPEND);
+    return false;
+});
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        file_put_contents(__DIR__ . '/php_error_debug.log',
+            date('Y-m-d H:i:s') . " [FATAL] {$err['message']} in {$err['file']} on line {$err['line']}\n",
+            FILE_APPEND);
+        http_response_code(500);
+        echo '<pre>' . htmlspecialchars($err['message']) . '</pre>';
+    }
+});
 
 // No HTML output — this file only processes POST and redirects.
 
