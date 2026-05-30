@@ -1,0 +1,10 @@
+---
+deployment:
+  targets:
+    - target: production
+      domain: whizzsfe.com/Travel_ETA
+      path: /home/whizzsf/public_html/Travel_ETA
+      exclude:
+        - .git
+        - node_modules
+        - .env
